@@ -3,6 +3,8 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+// see http://open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3356.html
+
 #ifndef MUTABLE_THREAD_DETAIL_N3356_HPP_
 #define MUTABLE_THREAD_DETAIL_N3356_HPP_
 
@@ -34,70 +36,67 @@ class mutable_thread : private boost::thread
 
     BOOST_MOVABLE_BUT_NOT_COPYABLE(mutable_thread)
 
-    static void
-    S_thraed_main_(mutable_thread *this_, boost::barrier *barrier)
+    struct thread_data_t
     {
-        boost::shared_ptr<bool>                      term = this_->m_term_;
-        boost::shared_ptr<boost::mutex>              mutex = this_->m_mutex_;
-        boost::shared_ptr<boost::condition_variable> cond = this_->m_cond_;
-        boost::shared_ptr<function_type>             func = this_->m_func_;
+        bool                      term;
+        boost::mutex              mutex;
+        boost::condition_variable cond;
+        function_type             func;
 
+        explicit
+        thread_data_t() : term(false) {}
+
+        template <typename F>
+        explicit
+        thread_data_t(F f)
+          : term(false), func(f) {}
+    }; // struct thread_data_t
+
+    static void
+    S_thraed_main_(boost::shared_ptr<thread_data_t> data, boost::barrier *barrier)
+    {
         typedef boost::unique_lock<boost::mutex> lock_type;
 
         while (true)
         {
-            lock_type guard(*mutex);
+            lock_type guard(data->mutex);
             if (barrier)
             {
                 barrier->wait();
                 barrier = NULL;
             }
-            while (func->empty())
+            if (data->term) { return; }
+            while (data->func.empty())
             {
-                if (*term) { return; } // terminate
-                cond->wait(guard);
+                if (data->term) { return; } // terminate
+                data->cond.wait(guard);
             }
 
-            (*func)();
-            func->clear();
+            data->func();
+            data->func.clear();
         }
     }
 
 public:
     mutable_thread()
-      : m_term_(boost::make_shared<bool>(false))
-      , m_mutex_(boost::make_shared<boost::mutex>())
-      , m_cond_(boost::make_shared<boost::condition_variable>())
-      , m_func_(boost::make_shared<function_type>())
+      : m_data_(boost::make_shared<thread_data_t>())
     {
         boost::barrier b(2);
-        thread_type(S_thraed_main_, this, &b).swap(*this);
+        thread_type(S_thraed_main_, m_data_, &b).swap(*this);
         b.wait();
     }
 
     mutable_thread(BOOST_RV_REF(mutable_thread) other) BOOST_NOEXCEPT
       : thread_type(boost::move(static_cast<thread_type &>(other)))
-      , m_term_(boost::move(other.m_term_))
-      , m_mutex_(boost::move(other.m_mutex_))
-      , m_cond_(boost::move(other.m_cond_))
-      , m_func_(boost::move(other.m_func_))
-    {
-        other.m_term_.reset();
-        other.m_mutex_.reset();
-        other.m_cond_.reset();
-        other.m_func_.reset();
-    }
+      , m_data_(move(other.m_data_)) {}
 
     template <typename F>
     explicit
     mutable_thread(F f)
-      : m_term_(boost::make_shared<bool>(false))
-      , m_mutex_(boost::make_shared<boost::mutex>())
-      , m_cond_(boost::make_shared<boost::condition_variable>())
-      , m_func_(boost::make_shared<function_type>(f))
+      : m_data_(boost::make_shared<thread_data_t>(f))
     {
         boost::barrier b(2);
-        thread_type(S_thraed_main_, this, &b).swap(*this);
+        thread_type(S_thraed_main_, m_data_, &b).swap(*this);
         b.wait();
     }
 
@@ -118,17 +117,23 @@ public:
         }
 
         typedef boost::unique_lock<boost::mutex> lock_type;
-        if (lock_type guard = lock_type(*m_mutex_))
+        if (lock_type guard = lock_type(m_data_->mutex))
         {
-            *m_term_ = true;
-            m_cond_->notify_one();
-
-            m_mutex_.reset();
-            m_cond_.reset();
-            m_func_.reset();
+            m_data_->term = true;
+            m_data_->cond.notify_one();
         }
-        thread_type::join();
-        m_term_.reset();
+
+        try
+        {
+            thread_type::join();
+            m_data_.reset();
+        }
+        catch (boost::thread_interrupted &e)
+        {
+            lock_type(m_data_->mutex),
+            m_data_->term = false,
+            throw;
+        }
     }
 
     using thread_type::joinable;
@@ -147,13 +152,13 @@ public:
               , "\"!is_done() && !is_joining()\" failed"));
         }
 
-        if (lock_type guard = lock_type(*m_mutex_, boost::try_to_lock))
+        if (lock_type guard = lock_type(m_data_->mutex, boost::try_to_lock))
         {
             if (is_done() || is_joining()) { return false; }
 
-            BOOST_ASSERT(m_func_->empty());
-            *m_func_ = f;
-            m_cond_->notify_one();
+            BOOST_ASSERT(m_data_->func.empty());
+            m_data_->func = f;
+            m_data_->cond.notify_one();
             return true;
         }
         return false;
@@ -173,13 +178,13 @@ public:
               , "\"!is_done() && !is_joining()\" failed"));
         }
 
-        if (lock_type guard = lock_type(*m_mutex_))
+        if (lock_type guard = lock_type(m_data_->mutex))
         {
             if (is_done() || is_joining()) { return false; }
 
-            BOOST_ASSERT(m_func_->empty());
-            *m_func_ = f;
-            m_cond_->notify_one();
+            BOOST_ASSERT(m_data_->func.empty());
+            m_data_->func = f;
+            m_data_->cond.notify_one();
             return true;
         }
         return false;
@@ -188,13 +193,13 @@ public:
     bool
     is_joining() const BOOST_NOEXCEPT
     {
-        return !m_mutex_ && !m_cond_ && !m_func_ && joinable();
+        return m_data_ && m_data_->term;
     }
 
     bool
     is_done() const BOOST_NOEXCEPT
     {
-        return !m_mutex_ && !m_cond_ && !m_func_ && !joinable();
+        return !m_data_;
     }
 
     using thread_type::id;
@@ -205,17 +210,11 @@ public:
     swap(mutable_thread &other) BOOST_NOEXCEPT
     {
         thread_type::swap(other);
-        boost::swap(m_term_ , other.m_term_ );
-        boost::swap(m_mutex_, other.m_mutex_);
-        boost::swap(m_cond_ , other.m_cond_ );
-        boost::swap(m_func_ , other.m_func_ );
+        boost::swap(m_data_, other.m_data_);
     }
 
 private:
-    boost::shared_ptr<bool>                      m_term_;
-    boost::shared_ptr<boost::mutex>              m_mutex_;
-    boost::shared_ptr<boost::condition_variable> m_cond_;
-    boost::shared_ptr<function_type>             m_func_;
+    boost::shared_ptr<thread_data_t> m_data_;
 }; // class mutable_thread
 
 } } // namespace mutable_threads::n3356
