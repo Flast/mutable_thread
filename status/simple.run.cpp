@@ -12,11 +12,13 @@ bool flag = false;
 
 void f()
 {
-    static_cast<void>(locker(mtx)), static_cast<void>(flag = true);
+    flag = true;
+    mtx.unlock();
 }
 
 int test_main(int, char **)
 {
+    mtx.lock();
     mutable_threads::mutable_thread mt(f);
     static_cast<void>(locker(mtx)), static_cast<void>(BOOST_REQUIRE(flag));
     mt.join();
