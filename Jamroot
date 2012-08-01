@@ -4,6 +4,7 @@ import path ;
 project /mutable_thread
   : build-dir bin.v2
   : requirements
+      <include>.
       <link>shared:<find-shared-library>boost_thread
       <link>static:<find-static-library>boost_thread
       <install-source-root>.
