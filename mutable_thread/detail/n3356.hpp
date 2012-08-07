@@ -88,7 +88,7 @@ public:
 
     mutable_thread(BOOST_RV_REF(mutable_thread) other) BOOST_NOEXCEPT
       : thread_type(boost::move(static_cast<thread_type &>(other)))
-      , m_data_(move(other.m_data_)) {}
+      , m_data_(other.m_data_) {}
 
     template <typename F>
     explicit
