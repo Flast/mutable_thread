@@ -1,12 +1,12 @@
-//          Copyright Kohei Takahashi 2012.
+//          Copyright Kohei Takahashi 2012-2013.
 // Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 // see http://open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3356.html
 
-#ifndef MUTABLE_THREAD_DETAIL_N3356_HPP_
-#define MUTABLE_THREAD_DETAIL_N3356_HPP_
+#ifndef BOOST_MUTABLE_THREAD_DETAIL_N3356_HPP
+#define BOOST_MUTABLE_THREAD_DETAIL_N3356_HPP
 
 #include <boost/assert.hpp>
 #include <boost/move/move.hpp>
@@ -24,9 +24,9 @@
 
 #include <boost/thread/exceptions.hpp>
 #include <boost/system/error_code.hpp>
-#include <mutable_thread/detail/exception.hpp>
+#include <boost/mutable_thread/detail/exception.hpp>
 
-namespace mutable_threads { namespace n3356 {
+namespace boost { namespace mutable_threads { namespace n3356 {
 
 class mutable_thread : private boost::thread
 {
@@ -217,7 +217,7 @@ private:
     boost::shared_ptr<thread_data_t> m_data_;
 }; // class mutable_thread
 
-} } // namespace mutable_threads::n3356
+} } } // namespace boost::mutable_threads::n3356
 
-#endif // MUTABLE_THREAD_DETAIL_N3356_HPP_
+#endif // BOOST_MUTABLE_THREAD_DETAIL_N3356_HPP
 

@@ -3,7 +3,7 @@
 
 #include <boost/test/minimal.hpp>
 
-#include <mutable_thread/mutable_thread.hpp>
+#include <boost/mutable_thread/mutable_thread.hpp>
 
 typedef boost::unique_lock<boost::mutex> locker;
 
@@ -19,7 +19,7 @@ void f()
 int test_main(int, char **)
 {
     mtx.lock();
-    mutable_threads::mutable_thread mt(f);
+    boost::mutable_threads::mutable_thread mt(f);
     static_cast<void>(locker(mtx)), static_cast<void>(BOOST_REQUIRE(flag));
     mt.join();
     return 0;

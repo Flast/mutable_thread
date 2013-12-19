@@ -1,16 +1,16 @@
-//          Copyright Kohei Takahashi 2012.
+//          Copyright Kohei Takahashi 2012-2013.
 // Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef MUTABLE_THREAD_DETAIL_EXCEPTION_HPP_
-#define MUTABLE_THREAD_DETAIL_EXCEPTION_HPP_
+#ifndef BOOST_MUTABLE_THREAD_DETAIL_EXCEPTION_HPP
+#define BOOST_MUTABLE_THREAD_DETAIL_EXCEPTION_HPP
 
 #include <string>
 #include <stdexcept>
 #include <boost/throw_exception.hpp>
 
-namespace mutable_threads { namespace detail {
+namespace boost { namespace mutable_threads { namespace detail {
 
 struct mutable_thread_exception : public std::logic_error
 {
@@ -21,7 +21,7 @@ struct mutable_thread_exception : public std::logic_error
     }
 }; // struct mutable_thread_exception
 
-} } // namespace mutable_threads::detail
+} } } // namespace boost::mutable_threads::detail
 
-#endif // MUTABLE_THREAD_DETAIL_EXCEPTION_HPP_
+#endif // BOOST_MUTABLE_THREAD_DETAIL_EXCEPTION_HPP
 
